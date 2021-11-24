@@ -56,3 +56,25 @@ df <- df %>% mutate(female=as.numeric(sex == 2)) %>%
 ```
 
 
+## Descriptive statistics
+
+
+```{r descriptives, echo=FALSE}
+
+P95 <- function(x){quantile(x,0.95,na.rm=T)}
+P05 <- function(x){quantile(x,0.05,na.rm=T)}
+datasummary( (`Weekly earnings` = earnwke ) + (`Weekly hours worked` = uhours ) + 
+               (`Hourly wage` = w ) ~
+               Mean + Median + SD + Min + Max + P05 + P95 , 
+             data = df,
+             title = 'Descriptive statistics' ) %>% 
+  kableExtra::kable_styling(latex_options = "hold_position")
+```
+
+
+```{r}
+#frequency table of men and women in the sample
+table(df$occ2012,df$female)
+```
+
+
