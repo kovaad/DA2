@@ -77,4 +77,85 @@ datasummary( (`Weekly earnings` = earnwke ) + (`Weekly hours worked` = uhours ) 
 table(df$occ2012,df$female)
 ```
 
+## Interpretation of descriptives comes here
 
+```{r cleaning}
+
+# based on class - hourly wage should be at least 1 USD
+
+df <- df %>% filter(w >= 1)
+```
+
+
+```{r wage gap regressions, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+
+reg1 <- feols( lnw ~ female, data = df, vcov = "hetero" )
+#reg1
+
+# A female is expected to earn on average 26.8% less than a male in these professions
+# This wage gap is significant at 5% significance level (even at 1%)
+
+reg2 <- feols( lnw ~ female + as.factor(grade92), data = df, vcov = "hetero" )
+#reg2
+
+reg3 <- feols( lnw ~ female + as.factor(grade92) + age, data = df, vcov = "hetero" )
+#reg3
+
+reg4 <- feols( lnw ~ female + as.factor(grade92) + age + agesq, data = df, vcov = "hetero" )
+#reg4
+
+msummary(list("Unconditional
+              Dependent variable" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =  reg4),
+         fmt="%.3f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2 Within|R2 Pseudo',
+         stars=c('*' = .05, '**' = .01),
+         coef_rename = c("female" = "Female","as.factor(grade92)37" = "11th","as.factor(grade92)39" = "High school graduate","as.factor(grade92)40" = "College no degree","as.factor(grade92)41" = "Associate degree vocational","as.factor(grade92)42" = "Associate degree academic","as.factor(grade92)43" = "Bachelor's degree","as.factor(grade92)44" = "Master's degree","as.factor(grade92)45" = "Professional school","as.factor(grade92)46" = "Doctorate degree","age" = "Age","agesq" = "Agesq")) %>% 
+  column_spec(1:5, width = "8em") %>% 
+  kable_classic(full_width = F, position = "center" )
+
+#row.names = c("Intercept","Female","11th", "High school graduate", "College no degree", "Associate degree vocational", "Associate degree academic", "Bachelor's degree", "Master's degree", "Professional school", "Doctorate degree", "Age", "Agesq")
+
+```
+
+## Interpretation of regressions comes here
+
+describes your major decisions, estimated models, interpretations
+
+```{r graphs}
+
+fig <- ggplot(data = df, aes(x = as.factor(grade92), y = lnw)) +
+  geom_point() + 
+  geom_smooth(method="loess") +
+  labs(x = "Highest education",y = "ln(earnings per hour)")
+
+fig
+
+
+```
+
+```{r}
+z1 <- predict(reg1, df, se.fit=TRUE)
+z2 <- predict(reg2, df, se.fit=TRUE)
+z3 <- predict(reg3, df, se.fit=TRUE)
+z4 <- predict(reg4, df, se.fit=TRUE)
+
+#Conditioning on schooling
+
+df<- df %>% mutate(lnwpred_f=z1[[1]],
+                   lnwpred_fSE=z1[[2]],
+                   lnwpred_fCIUP=lnwpred_f + 2*lnwpred_fSE,
+                   lnwpred_fCILO=lnwpred_f - 2*lnwpred_fSE,
+                   lnwpred_fg=z2[[1]],
+                   lnwpred_fgSE=z2[[2]],
+                   lnwpred_fgCIUP=lnwpred_fg + 2*lnwpred_fgSE,
+                   lnwpred_fgCILO=lnwpred_fg - 2*lnwpred_fgSE,
+                   lnwpred_fga=z3[[1]],
+                   lnwpred_fgaSE=z3[[2]],
+                   lnwpred_fgaCIUP=lnwpred_fga + 2*lnwpred_fgaSE,
+                   lnwpred_fgaCILO=lnwpred_fga - 2*lnwpred_fgaSE,
+                   lnwpred_fga2=z4[[1]],
+                   lnwpred_fga2SE=z4[[2]],
+                   lnwpred_fga2CIUP=lnwpred_fga2 + 2*lnwpred_fga2SE,
+                   lnwpred_fga2CILO=lnwpred_fga2 - 2*lnwpred_fga2SE
+)
+```
