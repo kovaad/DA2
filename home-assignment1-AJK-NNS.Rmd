@@ -1,0 +1,58 @@
+---
+title: "DA2 Assignment"
+author: "Adam Kovacs"
+date: "11/22/2021"
+output: 
+  pdf_document:
+    toc: true
+    fig_caption: true
+---
+
+```{r import, include=FALSE}
+#clear memory
+rm(list=ls())
+
+#import packages
+library(tidyverse)
+library(stargazer)
+library(modelsummary)
+library(kableExtra)
+library(ggplot2)
+library(fixest)
+library(estimatr)
+
+# import data
+df_orig <- read_csv( 'https://osf.io/4ay9x/download' )
+
+#View(df_orig)
+```
+
+
+```{r filter}
+#filter data
+
+#SELECT OCCUPATION
+# keep only two occupation types: Advertising and promotions managers and 
+# Marketing and sales managers
+df_orig <- df_orig %>% mutate(sample=ifelse(occ2012==0040,1,
+                                              ifelse(occ2012 == 0050,2,0)))
+
+df <- df_orig %>% filter(sample==1 | sample==2)
+tabulate(df$sample)
+
+#View(df)
+
+```
+
+```{r}
+#generate female, wage, logwage, agesquared variables
+
+df <- df %>% mutate(female=as.numeric(sex == 2)) %>%
+                         mutate(w = earnwke/uhours) %>%
+                         mutate(lnw = log(w)) %>%
+                         mutate(agesq = age^2)
+
+
+```
+
+
