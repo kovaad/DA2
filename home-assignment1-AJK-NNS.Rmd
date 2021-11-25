@@ -105,7 +105,7 @@ reg4 <- feols( lnw ~ female + as.factor(grade92) + age + agesq, data = df, vcov 
 
 We've decided to present our results with the summary table below.
 
-```{r}
+```{r, echo=FALSE}
 
 msummary(list("Unconditional" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =  reg4),
          fmt="%.3f",
@@ -131,7 +131,7 @@ We could go on-and-on in including possible mediators to our model, but consider
 
 ## Prediction
 
-```{r}
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
 #add predicted values and uncertainty metrics
 
 z1 <- predict(reg1, df, se.fit=TRUE)
@@ -162,7 +162,7 @@ df<- df %>% mutate(lnwpred_f=z1[[1]],
 
 ## Data Visualization
 
-```{r}
+```{r, include=FALSE}
 
 #prediction confidence of linear model
 pred_confidence <- bind_cols(df,as_tibble(predict(reg2, df, interval="confidence",level = 0.95)))
