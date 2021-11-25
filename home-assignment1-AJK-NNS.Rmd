@@ -87,6 +87,10 @@ df <- df %>% filter(w >= 1)
 
 ## Gender Wage Gap
 
+Now that everything is in order, we can start to run our regressions to show whether the gender wage gap exists in this particular profession, and if so, what is the magnitude of the gap, what variables are the confounders in this relationship. As a baseline model, we have fitted a simple linear semi-elasticity regression with log wage being at the LHS and female dummy on the RHS.
+
+Then, we started to extend our model with first including the level of education factor (xxx being the baseline), followed bt the age and squared value of age. 
+
 ```{r wage gap regressions, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
 reg1 <- feols( lnw ~ female, data = df, vcov = "hetero" )
@@ -114,6 +118,16 @@ msummary(list("Unconditional" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =
 #row.names = c("Intercept","Female","11th", "High school graduate", "College no degree", "Associate degree vocational", "Associate degree academic", "Bachelor's degree", "Master's degree", "Professional school", "Doctorate degree", "Age", "Agesq")
 
 ```
+
+A female is expected to earn on average 25.5% less than a male in these professions This wage gap is significant at 5% significance level (even at 1%).
+
+This gap tend to be slightly narrower if we include the level of educations, but the difference remains highly statistically significant. The additional variable also decreased the standard error of our female coefficient, all else being equal and multiplied our goodness-of-fit (17.2% of the log hourly wage's variance can be explained by the RHS). Therefore, we can say that the level of education is meaningful in the setup, as all of its coefficients are significant at the 5% level.
+
+Moving onto Model 2 where we also included the age of employees, which had a marginal part in mediating the difference between sexes below 20%, ceteris paribus, while being a significant confounder. We also managed to further improve the R2 to 0.203.
+
+Lastly, our last model have taken into consideration the possibility that the relationship between age and log hourly wake is non-linear. Hence, we included age as a polynomial of order two in the RHS. It seems as thought it was a reasonable decision by just looking at the significance of the variable and how much further it improved our fit (R2=0.235). As far as gender wage gap is concerned, a female tend to have averagely 19% lower hourly wage than a male working as a manager in Advertising & Sales.
+
+We could go on-and-on in including possible mediators to our model, but considering that we have a sample just greater than 1,000 observations, we should carefully evaluate how much further we want to extend what we have. There are also unobservable variables such as effort, education quality, etc. which education level can only partly proxy for. Our models indicate that there is indeed a significant relationship between gender and wage, but the gap narrows as we control for other variables.
 
 ```{r graphs}
 
