@@ -1,6 +1,6 @@
 ---
 title: "DA2 Assignment"
-author: "Adam Kovacs"
+author: "Adam Kovacs, Nam Son Nguyen"
 date: "11/22/2021"
 output: 
   pdf_document:
@@ -13,25 +13,20 @@ output:
 rm(list=ls())
 
 #import packages
-library(tidyverse)
-library(stargazer)
-library(modelsummary)
-library(kableExtra)
-library(ggplot2)
-library(fixest)
-library(estimatr)
+if (!require(pacman)){
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, modelsummary, kableExtra, fixest, estimatr)
 
 # import data
 df_orig <- read_csv( 'https://osf.io/4ay9x/download' )
 
-#View(df_orig)
 ```
 
+## Filtering for occupation
 
 ```{r filter}
-#filter data
-
-#SELECT OCCUPATION
 # keep only two occupation types: Advertising and promotions managers and 
 # Marketing and sales managers
 df_orig <- df_orig %>% mutate(sample=ifelse(occ2012==0040,1,
@@ -40,9 +35,9 @@ df_orig <- df_orig %>% mutate(sample=ifelse(occ2012==0040,1,
 df <- df_orig %>% filter(sample==1 | sample==2)
 tabulate(df$sample)
 
-#View(df)
-
 ```
+
+## Create new variables
 
 ```{r}
 #generate female, wage, logwage, agesquared variables
@@ -52,7 +47,6 @@ df <- df %>% mutate(female=as.numeric(sex == 2)) %>%
                          mutate(lnw = log(w)) %>%
                          mutate(agesq = age^2)
 
-
 ```
 
 
@@ -61,51 +55,55 @@ df <- df %>% mutate(female=as.numeric(sex == 2)) %>%
 
 ```{r descriptives, echo=FALSE}
 
+#create 5th and 95th percentiles
+
 P95 <- function(x){quantile(x,0.95,na.rm=T)}
 P05 <- function(x){quantile(x,0.05,na.rm=T)}
+
+#create descriptive table
 datasummary( (`Weekly earnings` = earnwke ) + (`Weekly hours worked` = uhours ) + 
                (`Hourly wage` = w ) ~
-               Mean + Median + SD + Min + Max + P05 + P95 , 
+               Mean + Median + SD + Min + Max + P05 + P95 + Histogram, 
              data = df,
-             title = 'Descriptive statistics' ) %>% 
+             title = 'Wage Metrics of Advertising and Sales Managers' ) %>% 
   kableExtra::kable_styling(latex_options = "hold_position")
+
 ```
 
 
 ```{r}
 #frequency table of men and women in the sample
 table(df$occ2012,df$female)
-```
 
-## Interpretation of descriptives comes here
+```
+What we can infer from the descriptives table is that there are couple fo individuals who do overtime beyond the average 40 hours per week (99 at maximum, which is strangely specific), thus them being at the long tail part of the distribution makes the sample distribution right-skewed. Regarding the standardized wage KPI, hourly wage, we can observe a relatively high average dispersion between data points (standard deviation is USD 16.56). Anomalies can also be detected after taking the range of hourly wages into account, as according to our sample, there can be the case that someone earns USD 0.03 per hour. We hardly believe that its possible in the US, therefore we will exclude extreme datapoint having lower than USD 1 as their hourly wage. Nothing extremely unusual can be detected when observing the 5th and 95th percentiles.
 
 ```{r cleaning}
 
-# based on class - hourly wage should be at least 1 USD
+# filter out posssible extreme values -- hourly wage should be at least 1 USD
 
 df <- df %>% filter(w >= 1)
 ```
 
+## Gender Wage Gap
 
 ```{r wage gap regressions, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
 reg1 <- feols( lnw ~ female, data = df, vcov = "hetero" )
-#reg1
-
-# A female is expected to earn on average 26.8% less than a male in these professions
-# This wage gap is significant at 5% significance level (even at 1%)
 
 reg2 <- feols( lnw ~ female + as.factor(grade92), data = df, vcov = "hetero" )
-#reg2
 
 reg3 <- feols( lnw ~ female + as.factor(grade92) + age, data = df, vcov = "hetero" )
-#reg3
 
 reg4 <- feols( lnw ~ female + as.factor(grade92) + age + agesq, data = df, vcov = "hetero" )
-#reg4
 
-msummary(list("Unconditional
-              Dependent variable" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =  reg4),
+```
+
+We've decided to present our results with the summary table below.
+
+```{r}
+
+msummary(list("Unconditional" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =  reg4),
          fmt="%.3f",
          gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2 Within|R2 Pseudo',
          stars=c('*' = .05, '**' = .01),
@@ -116,10 +114,6 @@ msummary(list("Unconditional
 #row.names = c("Intercept","Female","11th", "High school graduate", "College no degree", "Associate degree vocational", "Associate degree academic", "Bachelor's degree", "Master's degree", "Professional school", "Doctorate degree", "Age", "Agesq")
 
 ```
-
-## Interpretation of regressions comes here
-
-describes your major decisions, estimated models, interpretations
 
 ```{r graphs}
 
