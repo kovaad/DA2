@@ -129,19 +129,11 @@ Lastly, our last model have taken into consideration the possibility that the re
 
 We could go on-and-on in including possible mediators to our model, but considering that we have a sample just greater than 1,000 observations, we should carefully evaluate how much further we want to extend what we have. There are also unobservable variables such as effort, education quality, etc. which education level can only partly proxy for. Our models indicate that there is indeed a significant relationship between gender and wage, but the gap narrows as we control for other variables.
 
-```{r graphs}
-
-fig <- ggplot(data = df, aes(x = as.factor(grade92), y = lnw)) +
-  geom_point() + 
-  geom_smooth(method="loess") +
-  labs(x = "Highest education",y = "ln(earnings per hour)")
-
-fig
-
-
-```
+## Prediction
 
 ```{r}
+#add predicted values and uncertainty metrics
+
 z1 <- predict(reg1, df, se.fit=TRUE)
 z2 <- predict(reg2, df, se.fit=TRUE)
 z3 <- predict(reg3, df, se.fit=TRUE)
@@ -166,4 +158,21 @@ df<- df %>% mutate(lnwpred_f=z1[[1]],
                    lnwpred_fga2CIUP=lnwpred_fga2 + 2*lnwpred_fga2SE,
                    lnwpred_fga2CILO=lnwpred_fga2 - 2*lnwpred_fga2SE
 )
+```
+
+## Data Visualization
+
+```{r}
+
+#prediction confidence of linear model
+pred_confidence <- bind_cols(df,as_tibble(predict(reg2, df, interval="confidence",level = 0.95)))
+
+ggplot(data = pred_confidence %>% filter(df$lnw<4.4 & df$lnw>2), aes(x = age, y = lnw)) +
+  geom_point(size = 1,  shape = 16, alpha = 0.8, show.legend=F, na.rm = TRUE) + 
+  geom_smooth(method="lm", se=F, size = 0.8, linetype = 1)+
+  labs(x = "Age (years)",y = "ln(earnings per hour)")+
+  scale_linetype_manual(name = "", values=c(1, 1, 2), 
+                       labels = c("Lowess", "Confidence interval (95%)", "Confidence interval (95%)")) +
+  facet_wrap(~female)
+
 ```
