@@ -1,5 +1,5 @@
 ---
-title: "DA2 Assignment"
+title: "DA2 - Gender Wage Gap Analysis"
 author: "Adam Kovacs, Nam Son Nguyen"
 date: "11/22/2021"
 output: 
@@ -116,13 +116,33 @@ We've decided to present our results with the summary table below.
 
 ```{r, echo=FALSE}
 
-msummary(list("Level-Level" = reg0, "Unconditional" = reg1, "Conditional" = reg2, "Interaction" =  reg3),
-         fmt="%.3f",
+msummary(list("Unconditional" = reg1, "Level-Level" = reg0, "Conditional" = reg2, "Interaction" =  reg3),
+         fmt="%.2f",
          gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2 Within|R2 Pseudo',
          stars=c('*' = .05, '**' = .01),
-         coef_rename = c("female" = "Female", "grade920" = "No high school","grade9239" = "High school graduate","grade9240" = "College no degree","grade9241" = "Associate degree vocational","grade9242" = "Associate degree academic","grade9243" = "Bachelor's degree","grade9244" = "Master's degree","grade9245" = "Professional school"), title = "Gender Wage Gap | Level of Education") %>% 
-  column_spec(1:4, width = "8em") %>% 
-  kable_classic(full_width = F, position = "center" )
+         estimate = "{estimate} ({std.error}){stars}",
+         statistic = NULL,
+         coef_rename = c("female" = "Female",
+                         "grade920" = "No high school",
+                         "grade9239" = "High school graduate",
+                         "grade9240" = "College no degree",
+                         "grade9241" = "Associate degree vocational",
+                         "grade9242" = "Associate degree academic",
+                         "grade9243" = "Bachelor's degree",
+                         "grade9244" = "Master's degree",
+                         "grade9245" = "Professional school",
+                         "female:grade920" = "F x No high school",
+                         "female:grade9239" = "F x High school graduate",
+                         "female:grade9240" = "F x College no degree",
+                         "female:grade9241" = "F x Associate degree vocational",
+                         "female:grade9242" = "F x Associate degree academic",
+                         "female:grade9243" = "F x Bachelor's degree",
+                         "female:grade9244" = "F x Master's degree",
+                         "female:grade9245" = "F x Professional school"),
+         title = "Gender Wage Gap | Level of Education") %>% 
+        column_spec(1:4, width = "7em") %>%
+        row_spec(1:17, hline_after = T) %>% 
+        kable_classic(full_width = F, position = "center" )
 
 ```
 
@@ -188,7 +208,7 @@ ggplot(data = df, aes(x=grade92, group=1)) +
        subtitle = "Fitted values from our three regression models",
        x = "", 
        y = "Log Earnings (per hour)",
-       color  = "Model", linetype = "Formula", shape = "Formula") +
+       color  = "Model", linetype = "Model", shape = "Model") +
   scale_x_discrete(labels=c("0" = "No High school", "39" = "High school graduate", "40" = "Some school but no degree", "41" = "Vocational degree", "42" = "Academic degree", "43" = "Bachelors" , "44" = "Masters", "45" = "Professional degree", "46" = "Doctorate degree")) +
   scale_color_viridis_d() +
   theme_bw() +
