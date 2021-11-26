@@ -6,6 +6,7 @@ output:
   pdf_document:
     toc: true
     fig_caption: true
+    latex_engine: xelatex
 ---
 
 ```{r import, include=FALSE}
@@ -42,10 +43,11 @@ tabulate(df$sample)
 ```{r}
 #generate female, wage, logwage, agesquared variables
 
-df <- df %>% mutate(female=as.numeric(sex == 2)) %>%
-                         mutate(w = earnwke/uhours) %>%
-                         mutate(lnw = log(w)) %>%
-                         mutate(agesq = age^2)
+df <- df %>% mutate(female=as.numeric(sex == 2),
+                    w = earnwke/uhours,
+                    lnw = log(w),
+                    agesq = age^2,
+                    grade92 = relevel(as.factor(ifelse(grade92 == 34 | grade92 ==  37, 0, grade92)), ref = '46'))
 
 ```
 
@@ -89,17 +91,23 @@ df <- df %>% filter(w >= 1)
 
 Now that everything is in order, we can start to run our regressions to show whether the gender wage gap exists in this particular profession, and if so, what is the magnitude of the gap, what variables are the confounders in this relationship. As a baseline model, we have fitted a simple linear semi-elasticity regression with log wage being at the LHS and female dummy on the RHS.
 
-Then, we started to extend our model with first including the level of education factor (xxx being the baseline), followed bt the age and squared value of age. 
+Then, we started to extend our model with first including the level of education factor (7th or 8th grade being the baseline), followed by the age and squared value of age. 
 
 ```{r wage gap regressions, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
+reg0 <- feols( w ~ female + grade92, data = df, vcov = "hetero" )
+
 reg1 <- feols( lnw ~ female, data = df, vcov = "hetero" )
 
-reg2 <- feols( lnw ~ female + as.factor(grade92), data = df, vcov = "hetero" )
+reg2 <- feols( lnw ~ female + grade92, data = df, vcov = "hetero" )
 
-reg3 <- feols( lnw ~ female + as.factor(grade92) + age, data = df, vcov = "hetero" )
+reg3 <- feols( lnw ~ female * grade92, data = df, vcov = "hetero" )
 
-reg4 <- feols( lnw ~ female + as.factor(grade92) + age + agesq, data = df, vcov = "hetero" )
+
+
+#reg3 <- feols( lnw ~ female + grade92 + age, data = df, vcov = "hetero" )
+
+#reg4 <- feols( lnw ~ female + grade92 + age + agesq, data = df, vcov = "hetero" )
 
 ```
 
@@ -111,11 +119,9 @@ msummary(list("Unconditional" = reg1,"Model1" = reg2, "Model2" = reg3,"Model3" =
          fmt="%.3f",
          gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|AIC|BIC|R2 Within|R2 Pseudo',
          stars=c('*' = .05, '**' = .01),
-         coef_rename = c("female" = "Female","as.factor(grade92)37" = "11th","as.factor(grade92)39" = "High school graduate","as.factor(grade92)40" = "College no degree","as.factor(grade92)41" = "Associate degree vocational","as.factor(grade92)42" = "Associate degree academic","as.factor(grade92)43" = "Bachelor's degree","as.factor(grade92)44" = "Master's degree","as.factor(grade92)45" = "Professional school","as.factor(grade92)46" = "Doctorate degree","age" = "Age","agesq" = "Agesq")) %>% 
+         coef_rename = c("female" = "Female", "grade920" = "No high school","grade9239" = "High school graduate","grade9240" = "College no degree","grade9241" = "Associate degree vocational","grade9242" = "Associate degree academic","grade9243" = "Bachelor's degree","grade9244" = "Master's degree","grade9245" = "Professional school","age" = "Age","agesq" = "Agesq")) %>% 
   column_spec(1:5, width = "8em") %>% 
   kable_classic(full_width = F, position = "center" )
-
-#row.names = c("Intercept","Female","11th", "High school graduate", "College no degree", "Associate degree vocational", "Associate degree academic", "Bachelor's degree", "Master's degree", "Professional school", "Doctorate degree", "Age", "Agesq")
 
 ```
 
@@ -162,17 +168,19 @@ df<- df %>% mutate(lnwpred_f=z1[[1]],
 
 ## Data Visualization
 
-```{r, include=FALSE}
+```{r, include=TRUE}
 
 #prediction confidence of linear model
 pred_confidence <- bind_cols(df,as_tibble(predict(reg2, df, interval="confidence",level = 0.95)))
 
-ggplot(data = pred_confidence %>% filter(df$lnw<4.4 & df$lnw>2), aes(x = age, y = lnw)) +
+plot <- ggplot(data = pred_confidence, aes(x = grade92, y = lnw)) +
   geom_point(size = 1,  shape = 16, alpha = 0.8, show.legend=F, na.rm = TRUE) + 
   geom_smooth(method="lm", se=F, size = 0.8, linetype = 1)+
-  labs(x = "Age (years)",y = "ln(earnings per hour)")+
-  scale_linetype_manual(name = "", values=c(1, 1, 2), 
-                       labels = c("Lowess", "Confidence interval (95%)", "Confidence interval (95%)")) +
+  labs(x = "Education level",y = "ln(earnings per hour)") +
   facet_wrap(~female)
-
+plot
 ```
+
+
+
+
