@@ -2,12 +2,21 @@
 title: "DA2 - Gender Wage Gap Analysis"
 author: "Adam Kovacs, Nam Son Nguyen"
 date: "11/22/2021"
+geometry: margin=1.8cm
+fontsize: 9pt
 output: 
   pdf_document:
-    toc: true
     fig_caption: true
     latex_engine: xelatex
+header-includes: |
+  \usepackage{titling}
+  \setlength{\droptitle}{-5em}
+    
 ---
+
+## Introduction
+
+In this project, we analyze the [**cps-earnings dataset**](https://osf.io/g8p9j/) to investigate the unconditional gender wage gap between advertising, promotions, marketing and sales managers. Moreover, we also analyze how the gender wage gap varies with the level education for which we test multiple different models. 
 
 ```{r import, echo=FALSE, message=FALSE}
 #clear memory
@@ -25,7 +34,6 @@ df_orig <- read_csv( 'https://osf.io/4ay9x/download' )
 
 ```
 
-## Filtering for occupation
 
 ```{r filter, echo=FALSE}
 # keep only two occupation types: Advertising and promotions managers and 
@@ -41,12 +49,12 @@ df <- df_orig %>%
 
 #t <- table(df$occ2012,df$female)
 #rownames(t) <- c("Advertising Mngr.", "Sales Mngr.")
-
 #knitr::kable(t, col.names = c("Male", "Female"))
+
+# the frequency of men and women in the sample is roughly equal
 
 ```
 
-## Create new variables
 
 ```{r, echo=FALSE}
 #generate female, wage, logwage, agesquared variables
@@ -79,7 +87,7 @@ datasummary( (`Weekly earnings` = earnwke ) + (`Weekly hours worked` = uhours ) 
 
 ```
 
-What we can infer from the descriptives table is that there are couple fo individuals who do overtime beyond the average 40 hours per week (99 at maximum, which is strangely specific), thus them being at the long tail part of the distribution makes the sample distribution right-skewed. Regarding the standardized wage KPI, hourly wage, we can observe a relatively high average dispersion between data points (standard deviation is USD 16.56). Anomalies can also be detected after taking the range of hourly wages into account, as according to our sample, there can be the case that someone earns USD 0.03 per hour. We hardly believe that its possible in the US, therefore we will exclude extreme datapoint having lower than USD 1 as their hourly wage. Nothing extremely unusual can be detected when observing the 5th and 95th percentiles.
+What we can infer from the descriptive table is that there many individuals doing overtime beyond 40 hours per week (which is the median value), creating a mean higher than 40, which makes the sample distribution right-skewed. Regarding hourly wage, we can observe a relatively high average dispersion (standard deviation is USD 16.56). An extreme value can also be detected after taking the range of hourly wages into account, as according to our sample, there is someone who earns USD 0.03 per hour. We do not believe that its possible in the US, therefore we will exclude extreme datapoint(s) that have lower than USD 1 as their hourly wage. 
 
 ```{r cleaning, echo = FALSE}
 
@@ -90,9 +98,7 @@ df <- df %>% filter(w >= 1)
 
 ## Gender Wage Gap
 
-Now that everything is in order, we can start to run our regressions to show whether the gender wage gap exists in this particular profession, and if so, what is the magnitude of the gap, what variables are the confounders in this relationship. As a baseline model, we have fitted a simple linear semi-elasticity regression with log wage being at the LHS and female dummy on the RHS.
-
-Then, we started to extend our model with first including the level of education factor (7th or 8th grade being the baseline), followed by the age and squared value of age. 
+Next, we run regressions to test if a statistically significant gender wage gap exists in this particular collection of professions, and if so, its magnitude and relation to education level. We first fit a log-level regression of hourly wages on gender (dummy variable that is 0 if male and 1 if female) to get the unconditional gender wage gap. Then, we extend this by including the level of education as a categorical variable with the highest education level (Doctorate) as our base. We chose that one because it is the easiest to compare to (the lowest level is much more arbitrary). We run three different models to analyze this relationship. First, a level-level regression (hourly wage as the LHS variable), second, a log-level regression (log wage as the LHS variable). Finally, a regression with all interaction terms of gender(female) and the levels of education. 
 
 ```{r wage gap regressions, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
@@ -104,15 +110,7 @@ reg2 <- feols( lnw ~ female + grade92, data = df, vcov = "hetero" )
 
 reg3 <- feols( lnw ~ female * grade92, data = df, vcov = "hetero" )
 
-
-
-#reg3 <- feols( lnw ~ female + grade92 + age, data = df, vcov = "hetero" )
-
-#reg4 <- feols( lnw ~ female + grade92 + age + agesq, data = df, vcov = "hetero" )
-
 ```
-
-We've decided to present our results with the summary table below.
 
 ```{r, echo=FALSE}
 
@@ -146,17 +144,13 @@ msummary(list("Unconditional" = reg1, "Level-Level" = reg0, "Conditional" = reg2
 
 ```
 
-A female is expected to earn on average 25.5% less than a male in these professions This wage gap is significant at 5% significance level (even at 1%).
+Based on our first model a female is expected to earn on average around 26% less than a male in our chosen professions. This wage gap is significant at 5% significance level (and even at 1%). Based on our second model, a female is expected to earn on average around 6.69 USD less hourly wage than a male with the same education level in our chosen professions. This statistic is also significant at 5% significance level (and even at 1%). 
+In our third model, which is comparable with the first one, the gap appears to be smaller (23%) by including the levels of education as control variable, but it remains highly statistically significantly different from 0. The standard error also became lower, and our goodness-of-fit multiplied (17.2% of the log hourly wage's variance can be explained by the RHS variables). As we chose Doctorate as our base, it is unsurprising that all categories of education have a negative coefficient that indicates that they earn less hourly wage (e.g. high school graduates 6.1% less). However, in only the lower half of these education levels are the coefficients significant at the 5% level.
+Finally, in our fourth model, we can see that the female coefficient turned statistically insignificant indicating an absence of significant gender gap in wages. Though the R squared of this model is the highest, among the coefficients, only that of not finishing high school and the interaction of gender and professional school are significant. We can interpret it as: among those with professional school education, women tend to earn less than men by a whopping (0.33 - 1.1 =) 77%, but within other levels of education, such difference does not prove to be significant.  
 
-This gap tend to be slightly narrower if we include the level of educations, but the difference remains highly statistically significant. The additional variable also decreased the standard error of our female coefficient, all else being equal and multiplied our goodness-of-fit (17.2% of the log hourly wage's variance can be explained by the RHS). Therefore, we can say that the level of education is meaningful in the setup, as all of its coefficients are significant at the 5% level.
-
-Moving onto Model 2 where we also included the age of employees, which had a marginal part in mediating the difference between sexes below 20%, ceteris paribus, while being a significant confounder. We also managed to further improve the R2 to 0.203.
-
-Lastly, our last model have taken into consideration the possibility that the relationship between age and log hourly wake is non-linear. Hence, we included age as a polynomial of order two in the RHS. It seems as thought it was a reasonable decision by just looking at the significance of the variable and how much further it improved our fit (R2=0.235). As far as gender wage gap is concerned, a female tend to have averagely 19% lower hourly wage than a male working as a manager in Advertising & Sales.
-
-We could go on-and-on in including possible mediators to our model, but considering that we have a sample just greater than 1,000 observations, we should carefully evaluate how much further we want to extend what we have. There are also unobservable variables such as effort, education quality, etc. which education level can only partly proxy for. Our models indicate that there is indeed a significant relationship between gender and wage, but the gap narrows as we control for other variables.
-
-## Prediction
+We also compare  the predicted values of our models with the same LHS variable (log hourly wage) visually for females and males. The general pattern is very similar for the two sexes. The predicted values of our univariate regression show a slightly increasing line, while the multivariate models follow the variance in the data more precisely. The conditional and interaction models move closely together and diverge only for the lowest and highest levels of education. 
+The difference between wages whether people finish high school is not intuitive, but sample size is very low. From high school graduate to academic degree category only slightly higher values can be detected across categories. In higher education, however, higher-level degrees tend to have higher wages with only the effect of a Doctorate being less certain. 
+We also considered the possibility of using a spline with a cutoff at whether the observations have a degree in higher education. However, we decided not to include it, as those who did not finish high school would have distorted the first line and we already had three different models to analyze. But it can be another possibility for later research.  
 
 ```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
 #add predicted values and uncertainty metrics
@@ -185,6 +179,7 @@ df<- df %>% mutate(wpred_f=z0[[1]],
                    lnwpred_fxgCIUP=lnwpred_fxg + 2*lnwpred_fxgSE,
                    lnwpred_fxgCILO=lnwpred_fxg - 2*lnwpred_fxgSE
 )
+```
 
 ```{r, echo=FALSE, fig.height = 10, fig.width = 10}
 
@@ -218,6 +213,8 @@ ggplot(data = df, aes(x=grade92, group=1)) +
 
 ```
 
+## Conclusion
 
+To conclude, we find a significant unconditional gender wage gap of 26% in favor of males among advertising, promotions, marketing and sales managers. As for its relationship with education level, we find a smaller overall gap (6.69 USD or 23%) within these managers with the same education level. Using also interaction terms to understand the gap within each level of education, we only find significant difference among managers with a Professional degree (77%). 
 
 
