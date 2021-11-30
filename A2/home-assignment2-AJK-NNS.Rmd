@@ -1,0 +1,81 @@
+---
+title: "DA2 - Hotels Europe Analysis"
+author: "Adam Kovacs, Nam Son Nguyen"
+date: "12/04/2021"
+output: 
+  pdf_document:
+    toc: true
+    fig_caption: true
+    latex_engine: xelatex
+---
+
+## Introduction
+
+```{r import, echo=FALSE, message=FALSE}
+#clear memory
+rm(list=ls())
+
+#import packages
+if (!require(pacman)){
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, modelsummary, kableExtra, fixest, estimatr, mfx)
+
+# import data
+hprices <- read_csv('https://osf.io/p6tyr/download')
+hfeatures <- read_csv('https://osf.io/utwjs/download')
+
+#table(hfeatures$city)
+
+```
+
+## Filtering for city
+
+```{r filter, echo=FALSE}
+
+hotels <- merge(hprices, hfeatures)
+
+london <- hotels %>% filter(city_actual == "London")
+
+london <- london %>% 
+  mutate(highly_rated = ifelse(rating >= 4, 1, 0))
+
+```
+
+## Regressions
+
+```{r, echo=FALSE}
+
+unique(london$accommodation_type)
+
+lpm <- feols(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, vcov = 'hetero')
+
+logit <- glm(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, family = "binomial")
+
+logitm <- logitmfx(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, atmean = F, robust = T)
+
+probit <- glm(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, family = binomial(link = "probit"))
+
+probitm <- probitmfx(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, atmean = F, robust = T)
+
+msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" =  probit, "Probit_marginal" = probitm),
+         fmt="%.2f",
+         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|R2 Within|R2 Pseudo|R2',
+         stars=c('*' = .05, '**' = .01),
+         estimate = "{estimate} ({std.error}){stars}",
+         statistic = NULL,
+         coef_rename = c("distance" = "Distance",
+                         "stars" = "Stars",
+                         "as.factor(accommodation_type)Apartment" = "High school graduate",
+                         "as.factor(accommodation_type)Bed and breakfast" = "College no degree",
+                         "as.factor(accommodation_type)Guest House" = "Guest House",
+                         "as.factor(accommodation_type)Hostel" = "Hostel",
+                         "as.factor(accommodation_type)Hotel" = "Hotel",
+                         "as.factor(accommodation_type)Inn" = "Inn"),
+         title = "Highly rated") %>% 
+        column_spec(1:6, width = "7em") %>%
+        kable_classic(full_width = F, position = "center" )
+
+```
+## Conclusion
