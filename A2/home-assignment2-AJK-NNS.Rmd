@@ -2,10 +2,15 @@
 title: "DA2 - Hotels Europe Analysis"
 author: "Adam Kovacs, Nam Son Nguyen"
 date: "12/04/2021"
+geometry: margin=1.8cm
+fontsize: 9pt
 output: 
   pdf_document:
     fig_caption: true
     latex_engine: xelatex
+header-includes: |
+  \usepackage{titling}
+  \setlength{\droptitle}{-5em}
 ---
 
 ## Introduction
@@ -24,7 +29,6 @@ if (!require(pacman)){
 pacman::p_load(tidyverse, modelsummary, kableExtra, fixest, estimatr, mfx)
 
 # import data
-hprices <- read_csv('https://osf.io/p6tyr/download')
 hfeatures <- read_csv('https://osf.io/utwjs/download')
 
 #table(hfeatures$city)
@@ -34,16 +38,17 @@ hfeatures <- read_csv('https://osf.io/utwjs/download')
 ## Filtering for city
 
 ```{r filter, echo=FALSE}
-#merge the two datasets
-hotels <- merge(hprices, hfeatures)
+
 #filter on London and create binary variable highly_rated
-london <- hotels %>% filter(city_actual == "London") %>% 
-                     mutate(highly_rated = ifelse(rating >= 4, 1, 0))
+london <- hfeatures %>%
+          filter(city_actual == "London") %>%
+          mutate(highly_rated = ifelse(rating >= 4, 1, 0)) %>%
+          dplyr::select(highly_rated, stars, distance, accommodation_type) %>% 
+          na.omit()
 
 ```
 
 ## Descriptive statistics
-
 
 ```{r descriptives, echo=FALSE}
 
@@ -61,6 +66,7 @@ datasummary( (`Highly rated` = highly_rated ) + (`Distance from center` = distan
   kableExtra::kable_styling(latex_options = "hold_position")
 
 ```
+Our descriptive table indicates that 43% of the hotels in London are highly rates. Regarding the other two variables, the distribution of distance from center is right-skewed with an average of 2.60 kilometers, while we can infer a roughly normal distribution (mean ~ median) for stars with an average of 3.45.
 
 ## Regressions
 
@@ -84,7 +90,8 @@ msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" 
          stars=c('*' = .05, '**' = .01),
          estimate = "{estimate} ({std.error}){stars}",
          statistic = NULL,
-         coef_rename = c("distance" = "Distance",
+         coef_rename = c("(Intercept)" = "Constant",
+                         "distance" = "Distance",
                          "stars" = "Stars",
                          "as.factor(accommodation_type)Apartment" = "High school graduate",
                          "as.factor(accommodation_type)Bed and breakfast" = "College no degree",
@@ -97,4 +104,52 @@ msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" 
         kable_classic(full_width = F, position = "center" )
 
 ```
+
+## Predict
+
+```{r}
+
+#Append predictions to table
+london$pred_lpm <- predict( lpm )
+london$pred_logit <- predict( logit, type="response" )
+london$pred_probit <- predict( probit, type="response" )
+
+```
+
+
+## DataViz
+
+```{r, echo=FALSE, fig.align='center'}
+
+#Distribution of predicted values
+#Some falls outside the [0,1] interval
+ggplot(data=london, aes(x=pred_lpm)) +
+  geom_histogram(aes(y=..count../sum(..count..)), binwidth = 0.05, fill = "lightgreen", color = "green") +
+  coord_cartesian(xlim = c(-0.4, 1.1)) +
+  labs(title = "Distribution of Predicted Probabilities",
+       x = "Predicted probability of being highly rated (LPM)",
+       y = "Percent") +
+  scale_y_continuous(expand = c(0.00,0.0), limits = c(0,0.2), breaks = seq(0, 0.2, 0.05), labels = scales::percent_format(accuracy = 1)) +
+  scale_x_continuous(expand = c(0.001,0.01), limits = c(-0.4,1.1), breaks = seq(-0.4,1.1, 0.2)) +
+  theme_bw()
+
+#Prediction evaluation
+#Logit, probit estimates higher values for higher lpm, and lower for lower LPM
+ggplot(data = london) +
+  geom_point(aes(x=pred_lpm, y=pred_probit, color="Probit"), size=0.4,  shape=16) +
+  geom_point(aes(x=pred_lpm, y=pred_logit,  color="Logit"), size=0.4,  shape=16) +
+  geom_line(aes(x=pred_lpm, y=pred_lpm,    color="45 degree line"), size=0.4) +
+  labs(title = "Model Comparison",
+       x = "Predicted probability of staying healthy (LPM)",
+       y="Predicted probability")+
+  scale_y_continuous(expand = c(0.00,0.0), limits = c(0,1), breaks = seq(0,1,0.1)) +
+  scale_x_continuous(expand = c(0.00,0.0), limits = c(0,1), breaks = seq(0,1,0.1)) +
+  theme(legend.position=c(0.55,0.08),
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 4))
+
+
+```
+
 ## Conclusion
