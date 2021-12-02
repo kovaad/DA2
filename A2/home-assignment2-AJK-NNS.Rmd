@@ -1,13 +1,15 @@
 ---
 title: "DA2 - Hotels Europe Analysis"
 author: "Adam Kovacs, Nam Son Nguyen"
-date: "12/04/2021"
-geometry: margin=1.8cm
-fontsize: 9pt
-output: 
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
   pdf_document:
-    fig_caption: true
+    fig_caption: yes
     latex_engine: xelatex
+  html_document:
+    df_print: paged
+fontsize: 9pt
+geometry: margin=1.8cm
 header-includes: |
   \usepackage{titling}
   \setlength{\droptitle}{-5em}
@@ -83,6 +85,10 @@ logitm <- logitmfx(highly_rated ~ distance + stars + accommodation_type, data=lo
 probit <- feglm(highly_rated ~ distance + stars + accommodation_type, data=london, family = binomial(link = "probit"), vcov = 'hetero')
 #probit model marginal effects
 probitm <- probitmfx(highly_rated ~ distance + stars + accommodation_type, data=london, atmean = F, robust = T)
+
+```
+
+```{r, echo=F, warning=F}
 #summary of models
 msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" =  probit, "Probit_marginal" = probitm),
          fmt="%.2f",
@@ -101,7 +107,7 @@ msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" 
                          "accommodation_typeInn" = "Inn"),
          title = "Highly rated") %>% 
         column_spec(1:6, width = "7em") %>%
-        kable_classic(full_width = F, position = "center" )
+        kable_classic(full_width = F, position = "center" , latex_options = "hold_position")
 
 ```
 
@@ -109,23 +115,24 @@ From the linear probability model, we can interpret the coefficients the followi
 
 Next, let us turn to the average marginal differences given by the logit and probit models. We can see that with regards to distance, they are exactly the same as the LMP model. As for stars, having 1 more tend to result in only 30 percentage points higher likelihood of high rating (compared to 33 estimated by the LPM), ceteris paribus. Among the accommodation types, in these models only Apartment is significant at 1% level, which has a 14 percentage points lower likelihood of having higher rating than hotels (compared to 17 in the LPM). The bed and breakfast is also significant in 5% level in both models, having a marginal effect of -15 and -14 percentage points in the logit and probit models respectively (compared to the -16 estimated by the LPM). Finally, the guest house is only significant at 5% by the logit model, such a type of accommodation with the same attributes otherwise as a hotel has on average a 12 percentage point lower likelihood of being highly rated.
 
-## Goodness of fit
-
 ```{r, include=F, echo=F, message=F, warning=F}
 
 fitstat_register("brier", function(x){mean(x$residual^2)}, "Brier score")
 fitstat_register("logloss", function(x){
   log_id <- !is.na( x$fitted.values ) & x$fitted.values != 1 & x$fitted.values != 0
   y   <- x$fitted.values[ log_id ] + x$residuals[ log_id ]
-  lp  <- log( x$fitted.values[log_id] )
-  lnp <- log( 1 - x$fitted.values[log_id] )
+  lp  <- log( x$fitted.values[log_id])
+  lnp <- log( 1 - x$fitted.values[log_id])
   nobs <- sum( log_id )
-  return( 1 / nobs * sum( y * lp + ( 1 - y ) * lnp ) )
+  return( 1 / nobs * sum( y * lp + ( 1 - y ) * lnp , na.rm = T) )
 }, "log-loss")
 
-etable( lpm, logit, probit , drop = "stars|distance|accommodation",fitstat = ~ r2 + brier + pr2 + logloss, tex=T)
+etable( lpm, logit, probit , drop = "stars|distance|accommodation",fitstat = ~ r2 + brier + pr2 + logloss, tex=T, style.tex = )
 
 ```
+## Goodness of fit
+
+We have also evaluated goodness-of-fit metrics, starting with the Brier score. Numbers say that the best accuracy of fitted values was achieved by the Logit model (lowest gap between predicted and actual) followed by the Probit, and LPM. Pseudo R-squared metrics partly coincide with the Brier scores, as the best fitting is still Logit, but then LMP, and Probit only as the worst among the three. Regarding how much our prediction deviates from the actual values, log-loss tells us that the LPM model is the best performing one with the lowest log of average correction (-0.484) and Probit with the worst (-0.489). Considering all, they perform relatively poor in terms of goodness of fit, and we may have to consider more confounders to include in our future investigation.
 
 \begin{table}
 \caption{Goodness of fit metrics}
@@ -139,7 +146,7 @@ etable( lpm, logit, probit , drop = "stars|distance|accommodation",fitstat = ~ r
    R$^2$        & 0.33602         &                & \\
    Brier score  & 0.16250         & 0.15770        & 0.15832\\
    Pseudo R$^2$ & 0.28630         & 0.28646        & 0.28372\\
-   log-loss     & NaN             & -0.48705       & -0.48892\\
+   log-loss     & -0.48452             & -0.48705       & -0.48892\\
    \midrule\midrule\multicolumn{4}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
    \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
 \end{tabular}
