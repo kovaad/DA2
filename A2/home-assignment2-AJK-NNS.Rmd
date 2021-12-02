@@ -78,17 +78,17 @@ london <- within(london, accommodation_type<- relevel(as.factor(accommodation_ty
 #linear probability model
 lpm <- feols(highly_rated ~ distance + stars + accommodation_type, data=london, vcov = 'hetero')
 #logit model
-logit <- glm(highly_rated ~ distance + stars + accommodation_type, data=london, family = "binomial")
+logit <- feglm(highly_rated ~ distance + stars + accommodation_type, data=london, family = "logit", vcov = 'hetero')
 #logit model marginal effects
 logitm <- logitmfx(highly_rated ~ distance + stars + accommodation_type, data=london, atmean = F, robust = T)
 #probit model
-probit <- glm(highly_rated ~ distance + stars + accommodation_type, data=london, family = binomial(link = "probit"))
+probit <- feglm(highly_rated ~ distance + stars + accommodation_type, data=london, family = binomial(link = "probit"), vcov = 'hetero')
 #probit model marginal effects
 probitm <- probitmfx(highly_rated ~ distance + stars + accommodation_type, data=london, atmean = F, robust = T)
 #summary of models
 msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" =  probit, "Probit_marginal" = probitm),
          fmt="%.2f",
-         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|R2 Within|R2 Pseudo|R2',
+         gof_omit = 'DF|Deviance|Log.Lik.|F|R2 Adj.|R2 Within|R2 Pseudo|R',
          stars=c('*' = .05, '**' = .01),
          estimate = "{estimate} ({std.error}){stars}",
          statistic = NULL,
@@ -108,7 +108,44 @@ msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" 
 ```
 
 From the linear probability model, we can interpret the coefficients the following way: Being 1 km farther away from the city center surprisingly increases the probability of high rating by 2 percentage points. This is statistically significant at 5% significance level. Having 1 more star increases the likelihood of high rating by 33 percentage points. This is statistically significant even at 1% significance level. As for the type of accommodation, we chose hotels as our base category, because it has by far the most observations, so standard errors are lower and there are more significant results. In this LPM, the apartment and bed and breakfast are the two categories that are statistically significant at 1% level, and both have a lower probability by 17 and 16 percentage points on average compared to hotels with the same attributes to be highly rated. The guest house is another accommodation type that is significant at 5% level, it has on average a 12% less likelihood of being highly rate compared to a hotel with same attributes. 
-Next, let us turn to the average marginal differences given by the logit and probit models. We can see that with regards to distance, they are exactly the same as the LMP model. As for stars, having 1 more increases the likelihood of high rating by only 30 percentage points (compared to 33 estimated by the LPM). Among the accommodation types, in these models only Apartment is significant at 1% level, which has a 14 percentage points lower likelihood o higher rating than hotels (compared to 17 in the LPM). The bed and breakfast is also significant in 5% level in both models, having a marginal effect of -15 and -14 percentage points in the logit and probit models respectively (compared to the -16 estimated by the LPM). Finally, the guest house is only significant at 5% by the logit model, such a type of accommodation with the same attributes otherwise as a hotel has on average a 12 percentage point loer likelihood of being highly rated. 
+Next, let us turn to the average marginal differences given by the logit and probit models. We can see that with regards to distance, they are exactly the same as the LMP model. As for stars, having 1 more increases the likelihood of high rating by only 30 percentage points (compared to 33 estimated by the LPM). Among the accommodation types, in these models only Apartment is significant at 1% level, which has a 14 percentage points lower likelihood o higher rating than hotels (compared to 17 in the LPM). The bed and breakfast is also significant in 5% level in both models, having a marginal effect of -15 and -14 percentage points in the logit and probit models respectively (compared to the -16 estimated by the LPM). Finally, the guest house is only significant at 5% by the logit model, such a type of accommodation with the same attributes otherwise as a hotel has on average a 12 percentage point loer likelihood of being highly rated.
+
+## Goodness of fit
+
+```{r, include=F, echo=FALSE, message=TRUE, warning=TRUE}
+
+fitstat_register("brier", function(x){mean(x$residual^2)}, "Brier score")
+fitstat_register("logloss", function(x){
+  log_id <- !is.na( x$fitted.values ) & x$fitted.values != 1 & x$fitted.values != 0
+  y   <- x$fitted.values[ log_id ] + x$residuals[ log_id ]
+  lp  <- log( x$fitted.values[log_id] )
+  lnp <- log( 1 - x$fitted.values[log_id] )
+  nobs <- sum( log_id )
+  return( 1 / nobs * sum( y * lp + ( 1 - y ) * lnp ) )
+}, "log-loss")
+
+etable( lpm, logit, probit , drop = "stars|distance|accommodation",fitstat = ~ r2 + brier + pr2 + logloss, tex=T)
+
+```
+
+\begin{table}
+\caption{Goodness of fit metrics}
+\begin{center}
+\begin{tabular}{lccc}
+   \tabularnewline\midrule\midrule
+   Dependent Variable: & \multicolumn{3}{c}{highly\_rated}\\
+   Model:       & (1)             & (2)            & (3)\\
+                &  LPM            & Logit          & Probit\\
+   \midrule \emph{Fit statistics} &   &   &  \\
+   R$^2$        & 0.33602         &                & \\
+   Brier score  & 0.16250         & 0.15770        & 0.15832\\
+   Pseudo R$^2$ & 0.28630         & 0.28646        & 0.28372\\
+   log-loss     & NaN             & -0.48705       & -0.48892\\
+   \midrule\midrule\multicolumn{4}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
+   \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+\end{tabular}
+\end{center}
+\end{table}
 
 ```{r, echo=FALSE, message=FALSE, warning = FALSE}
 
