@@ -35,8 +35,6 @@ hfeatures <- read_csv('https://osf.io/utwjs/download')
 
 ```
 
-## Filtering for city
-
 ```{r filter, echo=FALSE}
 
 #filter on London and create binary variable highly_rated
@@ -70,19 +68,23 @@ Our descriptive table indicates that 43% of the hotels in London are highly rate
 
 ## Regressions
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
 #assess accomodation type as other explanatory variable
-unique(london$accommodation_type)
+#unique(london$accommodation_type)
+
+#create accomodation type as explanatory variable for regressions
+london <- within(london, accommodation_type<- relevel(as.factor(accommodation_type), ref = "Hotel"))
+
 #linear probability model
-lpm <- feols(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, vcov = 'hetero')
+lpm <- feols(highly_rated ~ distance + stars + accommodation_type, data=london, vcov = 'hetero')
 #logit model
-logit <- glm(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, family = "binomial")
+logit <- glm(highly_rated ~ distance + stars + accommodation_type, data=london, family = "binomial")
 #logit model marginal effects
-logitm <- logitmfx(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, atmean = F, robust = T)
+logitm <- logitmfx(highly_rated ~ distance + stars + accommodation_type, data=london, atmean = F, robust = T)
 #probit model
-probit <- glm(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, family = binomial(link = "probit"))
+probit <- glm(highly_rated ~ distance + stars + accommodation_type, data=london, family = binomial(link = "probit"))
 #probit model marginal effects
-probitm <- probitmfx(highly_rated ~ distance + stars + as.factor(accommodation_type), data=london, atmean = F, robust = T)
+probitm <- probitmfx(highly_rated ~ distance + stars + accommodation_type, data=london, atmean = F, robust = T)
 #summary of models
 msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" =  probit, "Probit_marginal" = probitm),
          fmt="%.2f",
@@ -93,21 +95,22 @@ msummary(list("LPM" = lpm, "Logit" = logit, "Logit_marginal" = logitm, "Probit" 
          coef_rename = c("(Intercept)" = "Constant",
                          "distance" = "Distance",
                          "stars" = "Stars",
-                         "as.factor(accommodation_type)Apartment" = "High school graduate",
-                         "as.factor(accommodation_type)Bed and breakfast" = "College no degree",
-                         "as.factor(accommodation_type)Guest House" = "Guest House",
-                         "as.factor(accommodation_type)Hostel" = "Hostel",
-                         "as.factor(accommodation_type)Hotel" = "Hotel",
-                         "as.factor(accommodation_type)Inn" = "Inn"),
+                         "accommodation_typeApart-hotel" = "Apart-hotel",
+                         "accommodation_typeApartment" = "Apartment",
+                         "accommodation_typeBed and breakfast" = "Bed and breakfast",
+                         "accommodation_typeGuest House" = "Guest House",
+                         "accommodation_typeHostel" = "Hostel",
+                         "accommodation_typeInn" = "Inn"),
          title = "Highly rated") %>% 
         column_spec(1:6, width = "7em") %>%
         kable_classic(full_width = F, position = "center" )
 
 ```
 
-## Predict
+From the linear probability model, we can interpret the coefficients the following way: Being 1 km farther away from the city center surprisingly increases the probability of high rating by 2 percentage points. This is statistically significant at 5% significance level. Having 1 more star increases the likelihood of high rating by 33 percentage points. This is statistically significant even at 1% significance level. As for the type of accommodation, we chose hotels as our base category, because it has by far the most observations, so standard errors are lower and there are more significant results. In this LPM, the apartment and bed and breakfast are the two categories that are statistically significant at 1% level, and both have a lower probability by 17 and 16 percentage points on average compared to hotels with the same attributes to be highly rated. The guest house is another accommodation type that is significant at 5% level, it has on average a 12% less likelihood of being highly rate compared to a hotel with same attributes. 
+Next, let us turn to the average marginal differences given by the logit and probit models. We can see that with regards to distance, they are exactly the same as the LMP model. As for stars, having 1 more increases the likelihood of high rating by only 30 percentage points (compared to 33 estimated by the LPM). Among the accommodation types, in these models only Apartment is significant at 1% level, which has a 14 percentage points lower likelihood o higher rating than hotels (compared to 17 in the LPM). The bed and breakfast is also significant in 5% level in both models, having a marginal effect of -15 and -14 percentage points in the logit and probit models respectively (compared to the -16 estimated by the LPM). Finally, the guest house is only significant at 5% by the logit model, such a type of accommodation with the same attributes otherwise as a hotel has on average a 12 percentage point loer likelihood of being highly rated. 
 
-```{r}
+```{r, echo=FALSE, message=FALSE, warning = FALSE}
 
 #Append predictions to table
 london$pred_lpm <- predict( lpm )
@@ -116,10 +119,7 @@ london$pred_probit <- predict( probit, type="response" )
 
 ```
 
-
-## DataViz
-
-```{r, echo=FALSE, fig.align='center'}
+```{r, echo=FALSE, fig.align='center', warning = FALSE}
 
 #Distribution of predicted values
 #Some falls outside the [0,1] interval
@@ -132,6 +132,17 @@ ggplot(data=london, aes(x=pred_lpm)) +
   scale_y_continuous(expand = c(0.00,0.0), limits = c(0,0.2), breaks = seq(0, 0.2, 0.05), labels = scales::percent_format(accuracy = 1)) +
   scale_x_continuous(expand = c(0.001,0.01), limits = c(-0.4,1.1), breaks = seq(-0.4,1.1, 0.2)) +
   theme_bw()
+
+#min(london$pred_lpm)
+#max(london$pred_lpm)
+#london %>% filter(pred_lpm < quantile(pred_lpm,0.01)) %>% summarise(avg_stars = mean(stars))
+#london %>% filter(pred_lpm < quantile(pred_lpm,0.01)) %>% summarise(avg_dist = mean(distance))
+#Mode <- function(x) {ux <- unique(x)
+#     ux[which.max(tabulate(match(x, ux)))]}
+#london %>% filter(pred_lpm < quantile(pred_lpm,0.01)) %>% summarise(mode = Mode(accommodation_type))
+#london %>% filter(pred_lpm > quantile(pred_lpm,0.01)) %>% summarise(avg_stars = mean(stars))
+#london %>% filter(pred_lpm > quantile(pred_lpm,0.01)) %>% summarise(avg_dist = mean(distance))
+#london %>% filter(pred_lpm > quantile(pred_lpm,0.01)) %>% summarise(mode = Mode(accommodation_type))
 
 #Prediction evaluation
 #Logit, probit estimates higher values for higher lpm, and lower for lower LPM
@@ -149,7 +160,18 @@ ggplot(data = london) +
         legend.title = element_blank(),
         legend.text = element_text(size = 4))
 
+#min(london$pred_logit)
+#max(london$pred_logit)
+#min(london$pred_probit)
+#max(london$pred_probit)
 
 ```
 
+In this first chart, we visualize the distribution of the predicted probabilities of the hotels being highly rated based on our linear probability model. The first obvious observation shows the major limitation of this model: The predicted probabilities range from -0.37 to 1.11, some of them being greater than 1 and even more being below 0. These probabilities obviously do not make economic sense. To get an idea about these extreme values, we looked at the average values of the covariates in the bottom and top 1% of the distribution. At the bottom, the average of stars is 1.88, the average distance from the center is 2.07 km and the mode of accomodation type is Bed and breakfast. As for the top 1%, the average of stars is 3.47, the average distance from the center is interestingly more at 2.6 km and the mode of accomodation type is Hotel. Besides these extremes, we can see some spikes in the distribution, the two biggest being at around 1/3 and 2/3.   
+
+In the second chart we compare our LPM, logit and probit models by visualizing their predicted probabilities. As can be seen on the figure, the baseline is the predictions of the LPM that correspond to simply a 45 degree line. The predicted probabilities from the
+logit and the probit are practically the same, but give higher estimates for higher values of LPM, and lower for lower values thant the LPM. The range of predicted values of the logit model is [0.007, 0.967], while for the probit it is [0.002,0.976]. These are obviously narrower than that of the LPM. 
+
 ## Conclusion
+To conclude, the
+
